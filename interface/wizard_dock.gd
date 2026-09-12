@@ -17,7 +17,8 @@ var config = preload("../config/config.gd").new()
 
 var _parser = null
 var _source_path := ""
-var _layer_items := {}  # filename -> TreeItem
+var _layer_items := {}  # paint filename -> TreeItem
+var _group_items := {}  # group filename -> TreeItem
 
 var _source_edit: LineEdit
 var _output_edit: LineEdit
@@ -135,16 +136,19 @@ func _make_layers_section() -> Control:
 	_tree.custom_minimum_size = Vector2(0, 220)
 	_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tree.hide_root = true
-	_tree.columns = 3
+	_tree.columns = 4
 	_tree.column_titles_visible = true
 	_tree.set_column_title(0, "Layer")
 	_tree.set_column_title(1, "Info")
 	_tree.set_column_title(2, "Merge")
+	_tree.set_column_title(3, "Trim")
 	_tree.set_column_expand(0, true)
 	_tree.set_column_expand(1, false)
 	_tree.set_column_expand(2, false)
+	_tree.set_column_expand(3, false)
 	_tree.set_column_custom_minimum_width(1, 130)
 	_tree.set_column_custom_minimum_width(2, 70)
+	_tree.set_column_custom_minimum_width(3, 60)
 	_tree.set_column_clip_content(1, true)
 	_tree.item_edited.connect(_on_layer_item_edited)
 	box.add_child(_tree)
@@ -169,8 +173,10 @@ func _make_options_section() -> Control:
 	box.add_child(_visible_check)
 
 	_trim_check = CheckBox.new()
-	_trim_check.text = "Trim to content"
+	_trim_check.text = "Trim to content (sets all rows below)"
+	_trim_check.tooltip_text = "Toggling this sets the Trim box on every layer and group row. Rows stay individually flippable afterwards."
 	_trim_check.button_pressed = false
+	_trim_check.toggled.connect(_on_global_trim_toggled)
 	box.add_child(_trim_check)
 
 	_split_check = CheckBox.new()
@@ -291,6 +297,7 @@ func _drop_data(_pos: Vector2, data: Variant) -> void:
 func _load_layers() -> void:
 	_tree.clear()
 	_layer_items.clear()
+	_group_items.clear()
 
 	if _source_path == "":
 		return
@@ -324,6 +331,13 @@ func _normalize_tree(item: TreeItem) -> void:
 func _add_layer_items(parent: TreeItem, layers: Array) -> void:
 	for layer in layers:
 		var item := _tree.create_item(parent)
+		# Per-row Trim box, seeded from the @trim tag when present,
+		# otherwise from the global Trim option. Afterwards the row
+		# is the source of truth for that layer/group.
+		var tags: Dictionary = layer_tags.parse_layer_name(str(layer.name))
+		var trim_default := _trim_check.button_pressed
+		if tags.trim != null:
+			trim_default = bool(tags.trim)
 		if layer.nodetype == "grouplayer":
 			item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
 			item.set_checked(0, bool(layer.visible))
@@ -332,9 +346,14 @@ func _add_layer_items(parent: TreeItem, layers: Array) -> void:
 			item.set_metadata(0, {"kind": "group", "ref": layer})
 			item.set_cell_mode(2, TreeItem.CELL_MODE_CHECK)
 			# @merge defaults the Merge box on; the checkbox still wins.
-			item.set_checked(2, layer_tags.parse_layer_name(str(layer.name)).merge == true)
+			item.set_checked(2, tags.merge == true)
 			item.set_editable(2, true)
 			item.set_tooltip_text(2, "Export this group as one merged PNG")
+			item.set_cell_mode(3, TreeItem.CELL_MODE_CHECK)
+			item.set_checked(3, trim_default)
+			item.set_editable(3, true)
+			item.set_tooltip_text(3, "Trim this group's merged PNG to content")
+			_group_items[str(layer.filename)] = item
 			_add_layer_items(item, layer.children)
 		else:
 			item.set_cell_mode(0, TreeItem.CELL_MODE_CHECK)
@@ -343,6 +362,10 @@ func _add_layer_items(parent: TreeItem, layers: Array) -> void:
 			item.set_text(0, str(layer.name))
 			item.set_metadata(0, {"kind": "layer", "ref": layer})
 			item.set_text(1, _layer_info_text(item, layer))
+			item.set_cell_mode(3, TreeItem.CELL_MODE_CHECK)
+			item.set_checked(3, trim_default)
+			item.set_editable(3, true)
+			item.set_tooltip_text(3, "Trim this layer's PNG to content")
 			_layer_items[str(layer.filename)] = item
 
 
@@ -367,6 +390,22 @@ func _layer_info_text(item: TreeItem, layer: Dictionary) -> String:
 
 
 var _updating_tree := false
+
+
+func _on_global_trim_toggled(pressed: bool) -> void:
+	# Explicit user action: push the global value into every row.
+	# Rows stay individually flippable afterwards.
+	if _tree.get_root() == null:
+		return
+	_updating_tree = true
+	_set_trim_recursive(_tree.get_root(), pressed)
+	_updating_tree = false
+
+
+func _set_trim_recursive(item: TreeItem, pressed: bool) -> void:
+	for child in item.get_children():
+		child.set_checked(3, pressed)
+		_set_trim_recursive(child, pressed)
 
 
 func _on_layer_item_edited() -> void:
@@ -489,11 +528,11 @@ func _collect_jobs(item: TreeItem, enabled_above: bool, jobs: Array) -> void:
 			if enabled and child.is_checked(2):
 				var subset := []
 				_collect_checked_leaves(child, subset)
-				jobs.push_back({"kind": "group", "ref": meta["ref"], "subset": subset})
+				jobs.push_back({"kind": "group", "ref": meta["ref"], "subset": subset, "trim": child.is_checked(3)})
 			else:
 				_collect_jobs(child, enabled, jobs)
 		elif kind == "layer" and enabled:
-			jobs.push_back({"kind": "layer", "ref": meta["ref"]})
+			jobs.push_back({"kind": "layer", "ref": meta["ref"], "trim": child.is_checked(3)})
 
 
 ## Checked paint-leaf refs under item, document order, honoring nested
@@ -561,12 +600,12 @@ func _on_apply_pressed() -> void:
 				if subset.is_empty():
 					logger.warn("Skipping merged group %s: no checked layers inside" % str(group.name), _source_path)
 					continue
-				if not _export_group_job(comp, group, subset, options, prefix, abs_output, pad_width, seq):
+				if not _export_group_job(comp, group, subset, bool(job.trim), options, prefix, abs_output, pad_width, seq):
 					continue
 				display_name = str(group.name)
 			else:
 				var layer: Dictionary = job.ref
-				if not _export_layer_job(comp, layer, options, prefix, abs_output, pad_width, seq):
+				if not _export_layer_job(comp, layer, bool(job.trim), options, prefix, abs_output, pad_width, seq):
 					continue
 				display_name = str(layer.name)
 			seq += 1
@@ -600,13 +639,12 @@ func _on_apply_pressed() -> void:
 		_set_status("Nothing was exported. Check layer filters.", true)
 
 
-func _export_layer_job(comp, layer: Dictionary, options: Dictionary, prefix: String, abs_output: String, pad_width: int, seq: int) -> bool:
+func _export_layer_job(comp, layer: Dictionary, trim_row: bool, options: Dictionary, prefix: String, abs_output: String, pad_width: int, seq: int) -> bool:
 	if not _layer_passes_filters(layer, options):
 		return false
 	var tags: Dictionary = layer_tags.parse_layer_name(str(layer.name))
 	var layer_options := options.duplicate()
-	if tags.trim != null:
-		layer_options.trim = bool(tags.trim)
+	layer_options.trim = trim_row
 	if tags.scale != null:
 		layer_options.scale = float(tags.scale)
 	var single: Dictionary = comp.compose_layer(_parser, layer, layer_options)
@@ -617,7 +655,7 @@ func _export_layer_job(comp, layer: Dictionary, options: Dictionary, prefix: Str
 	return _save_png(single.content.image, abs_output.path_join(file_name))
 
 
-func _export_group_job(comp, group: Dictionary, subset: Array, options: Dictionary, prefix: String, abs_output: String, pad_width: int, seq: int) -> bool:
+func _export_group_job(comp, group: Dictionary, subset: Array, trim_row: bool, options: Dictionary, prefix: String, abs_output: String, pad_width: int, seq: int) -> bool:
 	var tags: Dictionary = layer_tags.parse_layer_name(str(group.name))
 	var grouped: Dictionary = comp.compose_group_isolated(_parser, group, subset, options)
 	if not grouped.is_ok:
@@ -625,9 +663,7 @@ func _export_group_job(comp, group: Dictionary, subset: Array, options: Dictiona
 		return false
 	var image: Image = grouped.content.image
 	var used_rect: Rect2i = grouped.content.rect
-	var trim_opt := bool(options.get("trim", false))
-	if tags.trim != null:
-		trim_opt = bool(tags.trim)
+	var trim_opt := trim_row
 	if trim_opt:
 		image = image.get_region(used_rect)
 	var scale_opt := float(options.get("scale", 1.0))
@@ -723,6 +759,7 @@ func _push_history_entry(output_folder: String, prefix: String, layers: Array, o
 		"prefix": prefix,
 		"layers": names,
 		"merged": _collect_merged_groups(),
+		"trims": _collect_trim_states(),
 		"options": options,
 	})
 	var max_entries := config.get_history_max_entries()
@@ -759,6 +796,35 @@ func _apply_merged_state(item: TreeItem, wanted_merged: Array) -> void:
 		_apply_merged_state(child, wanted_merged)
 
 
+## Trim states keyed by node filename (paint layers and groups).
+func _collect_trim_states() -> Dictionary:
+	var out := {}
+	_collect_trims(_tree.get_root(), out)
+	return out
+
+
+func _collect_trims(item: TreeItem, out: Dictionary) -> void:
+	if item == null:
+		return
+	for child in item.get_children():
+		var meta: Dictionary = child.get_metadata(0)
+		if meta.has("ref"):
+			out[str(meta["ref"].filename)] = child.is_checked(3)
+		_collect_trims(child, out)
+
+
+func _apply_trim_states(item: TreeItem, wanted_trims: Dictionary) -> void:
+	if item == null:
+		return
+	for child in item.get_children():
+		var meta: Dictionary = child.get_metadata(0)
+		if meta.has("ref"):
+			var filename := str(meta["ref"].filename)
+			if wanted_trims.has(filename):
+				child.set_checked(3, bool(wanted_trims[filename]))
+		_apply_trim_states(child, wanted_trims)
+
+
 func _on_history_activated(index: int) -> void:
 	if index < 0 or index >= _history.size():
 		return
@@ -773,12 +839,14 @@ func _on_history_activated(index: int) -> void:
 	_scale_spin.value = float(options.get("scale", 1.0))
 	var wanted: Array = entry.get("layers", [])
 	var wanted_merged: Array = entry.get("merged", [])
+	var wanted_trims: Dictionary = entry.get("trims", {})
 	_updating_tree = true
 	for filename in _layer_items.keys():
 		var item: TreeItem = _layer_items[filename]
 		var meta: Dictionary = item.get_metadata(0)
 		item.set_checked(0, str(meta["ref"].name) in wanted)
 	_apply_merged_state(_tree.get_root(), wanted_merged)
+	_apply_trim_states(_tree.get_root(), wanted_trims)
 	_updating_tree = false
 	_normalize_tree(_tree.get_root())
 	_refresh_tree_states()

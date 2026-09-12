@@ -63,7 +63,8 @@ Split-import notes:
    - **Layer** — tri-state checkbox (dash = partially selected); dimmed rows won't export. Checking a group selects its whole subtree.
    - **Info** — blend mode and effective opacity when they differ from defaults.
    - **Merge** *(groups only)* — export the group as one flattened PNG from the checked descendants.
-3. Set exclude pattern, visible-only, trim, split/merge, scale, output folder and filename prefix.
+   - **Trim** — trim this row's PNG to content. Seeded from the `@trim` tag when present, otherwise from the global Trim option; flipping the global option re-applies it to every row, and rows stay individually flippable.
+3. Set exclude pattern, visible-only, split/merge, scale, output folder and filename prefix.
 4. **Generate PNGs** — files are numbered bottom-layer-first (`prefix_00_Background.png`, …) so they sort correctly.
 
 **Project → Krita Wizard → Config…** edits the project-wide defaults for the above.
