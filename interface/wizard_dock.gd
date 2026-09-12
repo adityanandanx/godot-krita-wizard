@@ -586,29 +586,30 @@ func _on_apply_pressed() -> void:
 	var exported := 0
 
 	if _split_check.button_pressed:
-		# Number files sequentially in paint order (bottom first) so
-		# they sort correctly in file browsers.
+		# Stable readable names, same scheme as the split importer
+		# sidecars: <prefix>_<CleanName>.png, no sequence numbers (those
+		# churned on every hide/show). Genuine duplicates get _1, _2...
+		# Export runs bottom-first (paint order), like the importer.
 		var ordered := jobs.duplicate()
 		ordered.reverse()
-		var pad_width := maxi(2, str(ordered.size() - 1).length())
-		var seq := 0
+		var used_names := {}
+		var display_name := ""
 		for job in ordered:
-			var display_name := ""
 			if str(job.kind) == "group":
 				var group: Dictionary = job.ref
 				var subset: Array = job.subset
 				if subset.is_empty():
 					logger.warn("Skipping merged group %s: no checked layers inside" % str(group.name), _source_path)
 					continue
-				if not _export_group_job(comp, group, subset, bool(job.trim), options, prefix, abs_output, pad_width, seq):
+				display_name = _unique_export_name(str(layer_tags.parse_layer_name(str(group.name)).clean_name), used_names)
+				if not _export_group_job(comp, group, subset, bool(job.trim), options, prefix, abs_output, display_name):
 					continue
-				display_name = str(group.name)
 			else:
 				var layer: Dictionary = job.ref
-				if not _export_layer_job(comp, layer, bool(job.trim), options, prefix, abs_output, pad_width, seq):
+				var tags: Dictionary = layer_tags.parse_layer_name(str(layer.name))
+				display_name = _unique_export_name(str(tags.clean_name), used_names)
+				if not _export_layer_job(comp, layer, bool(job.trim), options, prefix, abs_output, display_name):
 					continue
-				display_name = str(layer.name)
-			seq += 1
 			exported += 1
 	else:
 		# compose() paints bottom-to-top; the tree lists layers top-first.
@@ -639,7 +640,18 @@ func _on_apply_pressed() -> void:
 		_set_status("Nothing was exported. Check layer filters.", true)
 
 
-func _export_layer_job(comp, layer: Dictionary, trim_row: bool, options: Dictionary, prefix: String, abs_output: String, pad_width: int, seq: int) -> bool:
+## Deduplicated stable stem for one export name, mirroring the split
+## importer scheme: first use is bare, genuine duplicates get _1, _2...
+func _unique_export_name(clean_name: String, used_names: Dictionary) -> String:
+	var flat_name := _sanitize_layer_name(clean_name)
+	if used_names.has(flat_name):
+		used_names[flat_name] += 1
+		return "%s_%d" % [flat_name, used_names[flat_name]]
+	used_names[flat_name] = 0
+	return flat_name
+
+
+func _export_layer_job(comp, layer: Dictionary, trim_row: bool, options: Dictionary, prefix: String, abs_output: String, file_stem: String) -> bool:
 	if not _layer_passes_filters(layer, options):
 		return false
 	var tags: Dictionary = layer_tags.parse_layer_name(str(layer.name))
@@ -651,11 +663,11 @@ func _export_layer_job(comp, layer: Dictionary, trim_row: bool, options: Diction
 	if not single.is_ok:
 		logger.warn("Skipping layer %s: %s" % [str(layer.name), result_codes.get_error_message(single.code)], _source_path)
 		return false
-	var file_name := "%s%s_%s.png" % [prefix + "_" if prefix != "" else "", str(seq).lpad(pad_width, "0"), _sanitize_layer_name(str(tags.clean_name))]
+	var file_name := "%s%s.png" % [prefix + "_" if prefix != "" else "", file_stem]
 	return _save_png(single.content.image, abs_output.path_join(file_name))
 
 
-func _export_group_job(comp, group: Dictionary, subset: Array, trim_row: bool, options: Dictionary, prefix: String, abs_output: String, pad_width: int, seq: int) -> bool:
+func _export_group_job(comp, group: Dictionary, subset: Array, trim_row: bool, options: Dictionary, prefix: String, abs_output: String, file_stem: String) -> bool:
 	var tags: Dictionary = layer_tags.parse_layer_name(str(group.name))
 	var grouped: Dictionary = comp.compose_group_isolated(_parser, group, subset, options)
 	if not grouped.is_ok:
@@ -674,7 +686,7 @@ func _export_group_job(comp, group: Dictionary, subset: Array, trim_row: bool, o
 		var new_height := maxi(1, int(image.get_height() * scale_opt + 0.5))
 		var interpolation := Image.INTERPOLATE_NEAREST if scale_opt > 1.0 else Image.INTERPOLATE_BILINEAR
 		image.resize(new_width, new_height, interpolation)
-	var file_name := "%s%s_%s.png" % [prefix + "_" if prefix != "" else "", str(seq).lpad(pad_width, "0"), _sanitize_layer_name(str(tags.clean_name))]
+	var file_name := "%s%s.png" % [prefix + "_" if prefix != "" else "", file_stem]
 	return _save_png(image, abs_output.path_join(file_name))
 
 

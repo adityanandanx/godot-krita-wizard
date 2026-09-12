@@ -65,7 +65,7 @@ Split-import notes:
    - **Merge** *(groups only)* — export the group as one flattened PNG from the checked descendants.
    - **Trim** — trim this row's PNG to content. Seeded from the `@trim` tag when present, otherwise from the global Trim option; flipping the global option re-applies it to every row, and rows stay individually flippable.
 3. Set exclude pattern, visible-only, split/merge, scale, output folder and filename prefix.
-4. **Generate PNGs** — files are numbered bottom-layer-first (`prefix_00_Background.png`, …) so they sort correctly.
+4. **Generate PNGs** — stable readable names (`prefix_Background.png`, …), same scheme as the split importer: no sequence numbers (those renamed everything on hide/show), genuine duplicates get `_1`, `_2`, …
 
 **Project → Krita Wizard → Config…** edits the project-wide defaults for the above.
 
