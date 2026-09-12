@@ -93,6 +93,7 @@ func _make_importer_option() -> OptionButton:
 	_importer_option.add_item(config.IMPORTER_STATIC_TEXTURE_NAME)
 	_importer_option.add_item(config.IMPORTER_STATIC_TEXTURE_SPLIT_NAME)
 	_importer_option.add_item(config.IMPORTER_TILESET_TEXTURE_NAME)
+	_importer_option.add_item(config.IMPORTER_PARALLAX_LAYERS_NAME)
 	_importer_option.tooltip_text = "Importer assigned to newly added .kra files. Per-file choice in the Import dock still wins."
 	return _importer_option
 

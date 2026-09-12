@@ -35,6 +35,7 @@ Import [Krita](https://krita.org) (`.kra`) files directly into **Godot 4** — n
 | Krita Texture (Split By Layer) | One texture per paint layer via `.kra_layer_tex` sidecars (+ a manifest resource) |
 | Krita Layer Texture | Internal: imports a single `.kra_layer_tex` sidecar |
 | Krita Tileset Texture | Same as Krita Texture (tile grid slicing is not implemented yet) |
+| Krita Parallax Layers | A `ParallaxBackground` scene: one `ParallaxLayer` + `Sprite2D` per paint layer, speeds from tags (below) |
 | Krita (No Import) | Tracks the file without importing |
 
 Common options:
@@ -81,8 +82,23 @@ Whitespace-separated `@tags` anywhere in a layer or group name override export o
 | `@trim` / `@trim=false` / `@notrim` | Force trimming on/off |
 | `@exclude` / `@ignore` | Skip this entry (and, for groups, its whole subtree) |
 | `@merge` / `@nomerge` | Force-flatten / force-expand this group in split contexts |
+| `@speed=0.5`, `@speedx=` / `@speedy=` | Parallax scroll speed for this layer (`@speed` sets both axes; axis tags win; default 1, 1). Only used by the parallax importer |
 
-Example: a group named `Hero @merge`, a layer named `Sketch @exclude`, a layer named `Icon @scale=0.5 @notrim`.
+Example: a group named `Hero @merge`, a layer named `Sketch @exclude`, a layer named `Icon @scale=0.5 @notrim`, a layer named `Clouds @speed=0.3`.
+
+## Parallax layers
+
+Set a `.kra` file's importer to **Krita Parallax Layers**. On import it writes one `<doc>_<Layer>.png` per paint layer (trimmed PNGs positioned from content bounds; stable names, stale files cleaned up like split sidecars), imports them through Godot's standard texture pipeline, and saves a scene with this structure:
+
+```
+ParallaxBackground 'doc'
+├─ ParallaxLayer 'BottomLayer'  (motion_scale = (1, 1))
+│  └─ Sprite2D (texture, centered on the layer's content)
+├─ ParallaxLayer 'Clouds'       (motion_scale = (0.3, 0.3))
+...
+```
+
+Instantiate the scene under your 2D scene and the layers scroll at their tagged speeds with the camera. Layer opacity from Krita is baked into the PNGs; blend modes are not translated (use `CanvasItemMaterial` on the Sprite2D if needed). Groups are not units here — nested paint layers import individually.
 
 ## Notes & limitations
 

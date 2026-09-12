@@ -18,6 +18,9 @@ extends RefCounted
 ##    @exclude / @ignore                    - skip this layer entirely
 ##    @merge / @merge=true...               - merge this group into one file
 ##    @nomerge / @merge=false...            - never merge this group
+##    @speed=<float>                        - parallax speed for both axes
+##    @speedx=<float> / @speedy=<float>     - parallax speed per axis
+##                                            (axis tags win over @speed)
 ##
 ## Tokens that do not match a known tag are left untouched. trim/scale
 ## tags only affect per-layer outputs (split import, wizard split export);
@@ -34,14 +37,18 @@ const TAG_PREFIX = "@"
 ## Parses a layer name into export overrides.
 ## Returns { trim: Variant (bool or null), scale: Variant (float or null),
 ##             exclude: bool, merge: Variant (bool or null),
+##             speed_x: float, speed_y: float,
 ##             clean_name: String, tags: Array }
 ## A null trim/scale/merge means "no override, use the global option".
+## Speeds default to 1.0 (normal scroll speed).
 static func parse_layer_name(layer_name: String) -> Dictionary:
 	var result := {
 		"trim": null,
 		"scale": null,
 		"exclude": false,
 		"merge": null,
+		"speed_x": 1.0,
+		"speed_y": 1.0,
 		"clean_name": layer_name,
 		"tags": [],
 	}
@@ -62,6 +69,13 @@ static func parse_layer_name(layer_name: String) -> Dictionary:
 				result.exclude = true
 			"merge":
 				result.merge = parsed[1]
+			"speed":
+				result.speed_x = parsed[1]
+				result.speed_y = parsed[1]
+			"speedx":
+				result.speed_x = parsed[1]
+			"speedy":
+				result.speed_y = parsed[1]
 
 	result.clean_name = " ".join(kept_tokens).strip_edges()
 	if result.clean_name == "":
@@ -100,6 +114,18 @@ static func _parse_token(token: String) -> Variant:
 			return ["merge", _parse_bool(value)]
 		"nomerge":
 			return ["merge", false]
+		"speed":
+			if not _is_valid_float(value):
+				return null
+			return ["speed", float(value)]
+		"speedx":
+			if not _is_valid_float(value):
+				return null
+			return ["speedx", float(value)]
+		"speedy":
+			if not _is_valid_float(value):
+				return null
+			return ["speedy", float(value)]
 		"exclude", "ignore":
 			return ["exclude", true]
 		_:
