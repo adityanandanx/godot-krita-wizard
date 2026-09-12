@@ -39,10 +39,12 @@ func _build_ui() -> void:
 
 	_visible_check = CheckBox.new()
 	_visible_check.text = "Only include visible layers by default"
+	_visible_check.tooltip_text = "When on, layers hidden in Krita are skipped by default (still overridable per file in the Import dock)."
 	box.add_child(_visible_check)
 
 	_cleanup_check = CheckBox.new()
 	_cleanup_check.text = "Remove temporary files after import"
+	_cleanup_check.tooltip_text = "Delete intermediate files the wizard writes next to the source during import."
 	box.add_child(_cleanup_check)
 
 	box.add_child(_make_labeled_row("Default scale:", _make_scale_spin()))
@@ -50,6 +52,7 @@ func _build_ui() -> void:
 
 	_mipmaps_check = CheckBox.new()
 	_mipmaps_check.text = "Generate mipmaps by default (VRAM compression)"
+	_mipmaps_check.tooltip_text = "Generate mipmaps before compressing. Recommended with VRAM compression to avoid shimmer on minified textures; ignored by the lossless path."
 	box.add_child(_mipmaps_check)
 
 	box.add_child(_make_labeled_row("Max wizard history entries:", _make_history_spin()))
@@ -61,11 +64,13 @@ func _build_ui() -> void:
 
 	var close_button := Button.new()
 	close_button.text = "Close"
+	close_button.tooltip_text = "Close without saving."
 	close_button.pressed.connect(_on_close_pressed)
 	buttons.add_child(close_button)
 
 	var save_button := Button.new()
 	save_button.text = "Save"
+	save_button.tooltip_text = "Save these defaults to the project settings and close."
 	save_button.pressed.connect(_on_save_pressed)
 	buttons.add_child(save_button)
 
@@ -75,11 +80,12 @@ func _make_labeled_row(label_text: String, control: Control) -> Control:
 	row.add_theme_constant_override("separation", 4)
 	var label := Label.new()
 	label.text = label_text
+	label.tooltip_text = control.tooltip_text
+	label.mouse_filter = Control.MOUSE_FILTER_STOP
 	row.add_child(label)
 	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(control)
 	return row
-
 
 func _make_importer_option() -> OptionButton:
 	_importer_option = OptionButton.new()
@@ -87,12 +93,14 @@ func _make_importer_option() -> OptionButton:
 	_importer_option.add_item(config.IMPORTER_STATIC_TEXTURE_NAME)
 	_importer_option.add_item(config.IMPORTER_STATIC_TEXTURE_SPLIT_NAME)
 	_importer_option.add_item(config.IMPORTER_TILESET_TEXTURE_NAME)
+	_importer_option.tooltip_text = "Importer assigned to newly added .kra files. Per-file choice in the Import dock still wins."
 	return _importer_option
 
 
 func _make_pattern_edit() -> LineEdit:
 	_pattern_edit = LineEdit.new()
 	_pattern_edit.placeholder_text = "e.g. _* (glob)"
+	_pattern_edit.tooltip_text = "Default glob matched against layer names; matching layers are skipped by importers and pre-filled in the wizard."
 	return _pattern_edit
 
 
@@ -101,13 +109,16 @@ func _make_scale_spin() -> SpinBox:
 	_scale_spin.min_value = 0.1
 	_scale_spin.max_value = 8.0
 	_scale_spin.step = 0.1
+	_scale_spin.tooltip_text = "Default resize factor for imports and the wizard (0.1 – 8.0). Per-layer @scale tags override it."
 	return _scale_spin
+
 
 func _make_history_spin() -> SpinBox:
 	_history_spin = SpinBox.new()
 	_history_spin.min_value = 1.0
 	_history_spin.max_value = 1000.0
 	_history_spin.step = 1.0
+	_history_spin.tooltip_text = "How many wizard exports are remembered in the Import History list."
 	return _history_spin
 
 
@@ -118,6 +129,7 @@ func _make_compression_option() -> OptionButton:
 	_compression_option.add_item("VRAM - BPTC (Desktop HQ)", 2)
 	_compression_option.add_item("VRAM - ETC2 (Mobile)", 3)
 	_compression_option.add_item("VRAM - ASTC (Mobile HQ)", 4)
+	_compression_option.tooltip_text = "Default texture compression for imports. Lossless is pixel-exact; VRAM modes stay GPU-compressed on disk and in VRAM (smaller, faster, slightly lossy)."
 	return _compression_option
 
 

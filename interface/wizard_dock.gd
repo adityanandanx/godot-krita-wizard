@@ -77,10 +77,12 @@ func _build_ui() -> void:
 
 	var history_label := Label.new()
 	history_label.text = "Import History:"
+	history_label.tooltip_text = "Past wizard exports. Double-click an entry to reload its source, options and layer selection."
 	right.add_child(history_label)
 
 	_history_list = ItemList.new()
 	_history_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_history_list.tooltip_text = "Double-click an entry to reload that export's settings and layer selection."
 	_history_list.item_activated.connect(_on_history_activated)
 	right.add_child(_history_list)
 
@@ -93,6 +95,7 @@ func _make_header_row() -> Control:
 	row.add_child(title)
 	var close_button := Button.new()
 	close_button.text = "Close"
+	close_button.tooltip_text = "Close the Krita Wizard dock."
 	close_button.pressed.connect(func() -> void: close_requested.emit())
 	row.add_child(close_button)
 	return row
@@ -102,6 +105,10 @@ func _make_file_row(label_text: String, is_source: bool) -> Control:
 	var box := VBoxContainer.new()
 	var label := Label.new()
 	label.text = label_text
+	if is_source:
+		label.tooltip_text = "The Krita (.kra) file to read layers from. You can also drag a .kra file from the FileSystem dock onto this panel."
+	else:
+		label.tooltip_text = "Unused placeholder row."
 	box.add_child(label)
 	var row := HBoxContainer.new()
 	box.add_child(row)
@@ -109,10 +116,14 @@ func _make_file_row(label_text: String, is_source: bool) -> Control:
 	var edit := LineEdit.new()
 	edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	edit.editable = false
+	if is_source:
+		edit.tooltip_text = "Path of the selected .kra source file (read-only; use Select or drag-and-drop)."
 	row.add_child(edit)
 
 	var button := Button.new()
 	button.text = "Select"
+	if is_source:
+		button.tooltip_text = "Browse for a Krita (.kra) file inside the project."
 	row.add_child(button)
 
 	if is_source:
@@ -136,6 +147,7 @@ func _make_layers_section() -> Control:
 	_tree.custom_minimum_size = Vector2(0, 220)
 	_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tree.hide_root = true
+	_tree.tooltip_text = "Layer column: check rows to export (dash = partially selected group; dimmed rows are disabled by an unchecked parent). Info column: blend mode and effective opacity when non-default. Merge column (groups): flatten the checked descendants into one PNG. Trim column: crop that row's PNG to content."
 	_tree.columns = 4
 	_tree.column_titles_visible = true
 	_tree.set_column_title(0, "Layer")
@@ -161,15 +173,18 @@ func _make_options_section() -> Control:
 	var pattern_row := HBoxContainer.new()
 	var pattern_label := Label.new()
 	pattern_label.text = "Exclude pattern:"
+	pattern_label.tooltip_text = "Glob matched against layer names; matching layers are skipped (e.g. _*)."
 	pattern_row.add_child(pattern_label)
 	_pattern_edit = LineEdit.new()
 	_pattern_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_pattern_edit.placeholder_text = "e.g. _* (glob)"
+	_pattern_edit.tooltip_text = "Glob matched against layer names; matching layers are skipped. Empty means export everything checked."
 	pattern_row.add_child(_pattern_edit)
 	box.add_child(pattern_row)
 
 	_visible_check = CheckBox.new()
 	_visible_check.text = "Only include visible layers"
+	_visible_check.tooltip_text = "When on, layers hidden in Krita are skipped even if checked (group visibility is inherited)."
 	box.add_child(_visible_check)
 
 	_trim_check = CheckBox.new()
@@ -181,18 +196,21 @@ func _make_options_section() -> Control:
 
 	_split_check = CheckBox.new()
 	_split_check.text = "Split layers in multiple files (one PNG per layer)"
+	_split_check.tooltip_text = "On: one PNG per checked layer (or per merged group). Off: a single merged PNG of everything checked."
 	_split_check.button_pressed = true
 	box.add_child(_split_check)
 
 	var scale_row := HBoxContainer.new()
 	var scale_label := Label.new()
 	scale_label.text = "Scale:"
+	scale_label.tooltip_text = "Resize factor applied to exported PNGs. Below 1 downscales (bilinear), above 1 upscales (nearest-neighbor)."
 	scale_row.add_child(scale_label)
 	_scale_spin = SpinBox.new()
 	_scale_spin.min_value = 0.1
 	_scale_spin.max_value = 8.0
 	_scale_spin.step = 0.1
 	_scale_spin.value = 1.0
+	_scale_spin.tooltip_text = "Resize factor applied to exported PNGs (0.1 – 8.0). Per-layer @scale tags override this."
 	scale_row.add_child(_scale_spin)
 	box.add_child(scale_row)
 
@@ -205,13 +223,16 @@ func _make_output_section() -> Control:
 	var folder_row := HBoxContainer.new()
 	var folder_label := Label.new()
 	folder_label.text = "Output Folder:"
+	folder_label.tooltip_text = "Project folder the generated PNG files are written to (created if missing)."
 	folder_row.add_child(folder_label)
 	_output_edit = LineEdit.new()
 	_output_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_output_edit.text = "res://"
+	_output_edit.tooltip_text = "Project folder the generated PNG files are written to."
 	folder_row.add_child(_output_edit)
 	var folder_button := Button.new()
 	folder_button.text = "Select"
+	folder_button.tooltip_text = "Browse for the output folder inside the project."
 	folder_button.pressed.connect(_on_select_output_pressed)
 	folder_row.add_child(folder_button)
 	box.add_child(folder_row)
@@ -219,9 +240,11 @@ func _make_output_section() -> Control:
 	var prefix_row := HBoxContainer.new()
 	var prefix_label := Label.new()
 	prefix_label.text = "File Name / Prefix:"
+	prefix_label.tooltip_text = "Prefix prepended to every generated file (split mode), or the whole file name (merged mode)."
 	prefix_row.add_child(prefix_label)
 	_prefix_edit = LineEdit.new()
 	_prefix_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_prefix_edit.tooltip_text = "Prefix for generated files, e.g. 'hero' gives hero_<Layer>.png. Empty is allowed."
 	prefix_row.add_child(_prefix_edit)
 	box.add_child(prefix_row)
 
@@ -233,6 +256,7 @@ func _make_buttons_row() -> Control:
 	row.alignment = BoxContainer.ALIGNMENT_END
 	_apply_button = Button.new()
 	_apply_button.text = "Generate PNGs"
+	_apply_button.tooltip_text = "Export the checked layers with the options above into the output folder."
 	_apply_button.pressed.connect(_on_apply_pressed)
 	row.add_child(_apply_button)
 	return row
