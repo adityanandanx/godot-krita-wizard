@@ -83,6 +83,8 @@ Whitespace-separated `@tags` anywhere in a layer or group name override export o
 | `@exclude` / `@ignore` | Skip this entry (and, for groups, its whole subtree) |
 | `@merge` / `@nomerge` | Force-flatten / force-expand this group in split contexts |
 | `@speed=0.5`, `@speedx=` / `@speedy=` | Parallax scroll speed for this layer (`@speed` sets both axes; axis tags win; default 1, 1). Only used by the parallax importer |
+| `@repeat=1280` / `@repeat=1280px` | Parallax texture repeat for this layer, both axes in pixels (0 = no repeat). Only used by the parallax importer |
+| `@repeatx=` / `@repeaty=` | Same, per axis (axis tags win); a bare `@repeatx` repeats every texture-width pixels, `@repeaty` every texture-height |
 
 Example: a group named `Hero @merge`, a layer named `Sketch @exclude`, a layer named `Icon @scale=0.5 @notrim`, a layer named `Clouds @speed=0.3`.
 
@@ -98,7 +100,7 @@ Node2D 'doc'
 ...
 ```
 
-Instantiate the scene under your 2D scene and the layers scroll at their tagged speeds with the camera. Layer opacity from Krita is baked into the PNGs; blend modes are not translated (use `CanvasItemMaterial` on the Sprite2D if needed). Groups are not units here — nested paint layers import individually.
+Instantiate the scene under your 2D scene and the layers scroll at their tagged speeds with the camera. Instance it before your gameplay nodes: the root is a plain `Node2D`, so it draws in tree order (unlike the old `ParallaxBackground`, which always drew behind). A bare `@repeatx`/`@repeaty` (or `@repeat`) uses the exported PNG's size on that axis, which tiles trimmed layers seamlessly; use explicit pixel values to repeat full-canvas art. Layer opacity from Krita is baked into the PNGs; blend modes are not translated (use `CanvasItemMaterial` on the Sprite2D if needed). Groups are not units here — nested paint layers import individually.
 
 ## Notes & limitations
 

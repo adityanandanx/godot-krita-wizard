@@ -21,6 +21,12 @@ extends RefCounted
 ##    @speed=<float>                        - parallax speed for both axes
 ##    @speedx=<float> / @speedy=<float>     - parallax speed per axis
 ##                                            (axis tags win over @speed)
+##    @repeat=<px> / @repeat=1280px         - parallax texture repeat, both axes
+##    @repeatx=<px> / @repeaty=<px>         - parallax texture repeat per axis
+##                                            (axis tags win over @repeat;
+##                                            a bare @repeatx auto-uses the
+##                                            exported texture's width, and
+##                                            vice versa for y)
 ##
 ## Tokens that do not match a known tag are left untouched. trim/scale
 ## tags only affect per-layer outputs (split import, wizard split export);
@@ -38,8 +44,10 @@ const TAG_PREFIX = "@"
 ## Returns { trim: Variant (bool or null), scale: Variant (float or null),
 ##             exclude: bool, merge: Variant (bool or null),
 ##             speed_x: float, speed_y: float,
+##             repeat_x: Variant (float, "auto", or null),
+##             repeat_y: Variant (float, "auto", or null),
 ##             clean_name: String, tags: Array }
-## A null trim/scale/merge means "no override, use the global option".
+## A null trim/scale/merge/repeat means "no override, use the global option".
 ## Speeds default to 1.0 (normal scroll speed).
 static func parse_layer_name(layer_name: String) -> Dictionary:
 	var result := {
@@ -49,6 +57,8 @@ static func parse_layer_name(layer_name: String) -> Dictionary:
 		"merge": null,
 		"speed_x": 1.0,
 		"speed_y": 1.0,
+		"repeat_x": null,
+		"repeat_y": null,
 		"clean_name": layer_name,
 		"tags": [],
 	}
@@ -76,6 +86,13 @@ static func parse_layer_name(layer_name: String) -> Dictionary:
 				result.speed_x = parsed[1]
 			"speedy":
 				result.speed_y = parsed[1]
+			"repeat":
+				result.repeat_x = parsed[1]
+				result.repeat_y = parsed[1]
+			"repeatx":
+				result.repeat_x = parsed[1]
+			"repeaty":
+				result.repeat_y = parsed[1]
 
 	result.clean_name = " ".join(kept_tokens).strip_edges()
 	if result.clean_name == "":
@@ -126,6 +143,27 @@ static func _parse_token(token: String) -> Variant:
 			if not _is_valid_float(value):
 				return null
 			return ["speedy", float(value)]
+		"repeat":
+			if value == "":
+				return ["repeat", "auto"]
+			var both := _parse_pixels(value)
+			if both == null:
+				return null
+			return ["repeat", both]
+		"repeatx":
+			if value == "":
+				return ["repeatx", "auto"]
+			var rx := _parse_pixels(value)
+			if rx == null:
+				return null
+			return ["repeatx", rx]
+		"repeaty":
+			if value == "":
+				return ["repeaty", "auto"]
+			var ry := _parse_pixels(value)
+			if ry == null:
+				return null
+			return ["repeaty", ry]
 		"exclude", "ignore":
 			return ["exclude", true]
 		_:
@@ -146,3 +184,14 @@ static func _is_valid_float(value: String) -> bool:
 	if value == "":
 		return false
 	return value.is_valid_float()
+
+
+## Parses a pixel amount with an optional "px" suffix ("1280", "1280px").
+## Returns the non-negative float, or null when invalid.
+static func _parse_pixels(value: String) -> Variant:
+	var num := value
+	if num.to_lower().ends_with("px"):
+		num = num.left(num.length() - 2)
+	if num == "" or not num.is_valid_float():
+		return null
+	return maxf(0.0, float(num))

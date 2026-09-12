@@ -5,7 +5,9 @@ extends EditorImportPlugin
 ## Parallax layers importer.
 ## Imports a Krita document as a Node2D scene: one Parallax2D +
 ## Sprite2D per paint layer, with scroll_scale taken from @speed /
-## @speedx / @speedy layer tags (default 1, 1).
+## @speedx / @speedy layer tags (default 1, 1) and repeat_size from
+## @repeat / @repeatx / @repeaty tags (a bare tag auto-uses the
+## exported texture's size on that axis).
 ##
 ## Layer PNGs are written next to the source (or the configured folder),
 ## imported through Godot's own texture pipeline, and referenced by the
@@ -147,6 +149,7 @@ func _import(source_file, save_path, options, platform_variants, gen_files):
 			"texture": texture,
 			"position": center,
 			"scroll": Vector2(float(tags.speed_x), float(tags.speed_y)),
+			"repeat": _resolve_repeat(tags, image.get_size()),
 		})
 
 	parser.close()
@@ -180,6 +183,7 @@ func _build_parallax_scene(doc_stem: String, layer_nodes: Array) -> PackedScene:
 		var pl := Parallax2D.new()
 		pl.name = str(entry.name)
 		pl.scroll_scale = entry.scroll
+		pl.repeat_size = entry.repeat
 		root.add_child(pl)
 		pl.owner = root
 
@@ -194,6 +198,23 @@ func _build_parallax_scene(doc_stem: String, layer_nodes: Array) -> PackedScene:
 	if packed.pack(root) != OK:
 		return null
 	return packed
+
+
+## Resolves the repeat_size for one layer: null means no repeat (0),
+## "auto" (bare tag) means the exported texture's size on that axis.
+func _resolve_repeat(tags: Dictionary, tex_size: Vector2i) -> Vector2:
+	return Vector2(
+		_repeat_axis(tags.repeat_x, float(tex_size.x)),
+		_repeat_axis(tags.repeat_y, float(tex_size.y))
+	)
+
+
+func _repeat_axis(value: Variant, auto_value: float) -> float:
+	if value == null:
+		return 0.0
+	if value is String:
+		return auto_value
+	return float(value)
 
 
 ## Writes the PNG only when bytes differ, so untouched layers don't
