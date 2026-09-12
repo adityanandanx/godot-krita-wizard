@@ -35,7 +35,7 @@ Import [Krita](https://krita.org) (`.kra`) files directly into **Godot 4** — n
 | Krita Texture (Split By Layer) | One texture per paint layer via `.kra_layer_tex` sidecars (+ a manifest resource) |
 | Krita Layer Texture | Internal: imports a single `.kra_layer_tex` sidecar |
 | Krita Tileset Texture | Same as Krita Texture (tile grid slicing is not implemented yet) |
-| Krita Parallax Layers | A `ParallaxBackground` scene: one `ParallaxLayer` + `Sprite2D` per paint layer, speeds from tags (below) |
+| Krita Parallax Layers | A `Node2D` scene: one `Parallax2D` + `Sprite2D` per paint layer, speeds from tags (below) |
 | Krita (No Import) | Tracks the file without importing |
 
 Common options:
@@ -91,10 +91,10 @@ Example: a group named `Hero @merge`, a layer named `Sketch @exclude`, a layer n
 Set a `.kra` file's importer to **Krita Parallax Layers**. On import it writes one `<doc>_<Layer>.png` per paint layer (trimmed PNGs positioned from content bounds; stable names, stale files cleaned up like split sidecars), imports them through Godot's standard texture pipeline, and saves a scene with this structure:
 
 ```
-ParallaxBackground 'doc'
-├─ ParallaxLayer 'BottomLayer'  (motion_scale = (1, 1))
+Node2D 'doc'
+├─ Parallax2D 'BottomLayer'  (scroll_scale = (1, 1))
 │  └─ Sprite2D (texture, centered on the layer's content)
-├─ ParallaxLayer 'Clouds'       (motion_scale = (0.3, 0.3))
+├─ Parallax2D 'Clouds'       (scroll_scale = (0.3, 0.3))
 ...
 ```
 

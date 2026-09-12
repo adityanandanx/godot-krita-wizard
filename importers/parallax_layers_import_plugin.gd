@@ -3,9 +3,9 @@ extends EditorImportPlugin
 
 ##
 ## Parallax layers importer.
-## Imports a Krita document as a ParallaxBackground scene: one
-## ParallaxLayer + Sprite2D per paint layer, with motion_scale taken
-## from @speed / @speedx / @speedy layer tags (default 1, 1).
+## Imports a Krita document as a Node2D scene: one Parallax2D +
+## Sprite2D per paint layer, with scroll_scale taken from @speed /
+## @speedx / @speedy layer tags (default 1, 1).
 ##
 ## Layer PNGs are written next to the source (or the configured folder),
 ## imported through Godot's own texture pipeline, and referenced by the
@@ -146,7 +146,7 @@ func _import(source_file, save_path, options, platform_variants, gen_files):
 			"name": _unique_node_name(stem, layer_nodes),
 			"texture": texture,
 			"position": center,
-			"motion": Vector2(float(tags.speed_x), float(tags.speed_y)),
+			"scroll": Vector2(float(tags.speed_x), float(tags.speed_y)),
 		})
 
 	parser.close()
@@ -166,19 +166,20 @@ func _import(source_file, save_path, options, platform_variants, gen_files):
 	return OK
 
 
-## Builds the ParallaxBackground scene. Layers arrive bottom-to-top;
-## child order matches so same-speed overlaps stack like in Krita.
+## Builds the parallax scene: a Node2D root with one Parallax2D
+## child per layer. Layers arrive bottom-to-top; child order matches
+## so same-speed overlaps stack like in Krita.
 func _build_parallax_scene(doc_stem: String, layer_nodes: Array) -> PackedScene:
 	if layer_nodes.is_empty():
 		return null
 
-	var root := ParallaxBackground.new()
+	var root := Node2D.new()
 	root.name = doc_stem.validate_node_name()
 
 	for entry in layer_nodes:
-		var pl := ParallaxLayer.new()
+		var pl := Parallax2D.new()
 		pl.name = str(entry.name)
-		pl.motion_scale = entry.motion
+		pl.scroll_scale = entry.scroll
 		root.add_child(pl)
 		pl.owner = root
 
