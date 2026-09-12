@@ -66,6 +66,13 @@ func _get_import_options(_path, _i):
 		{"name": "sheet/trim", "default_value": false},
 		{"name": "sheet/scale", "default_value": config.get_default_scale()},
 		{
+			"name": "texture/compression",
+			"default_value": config.get_default_compression(),
+			"property_hint": PROPERTY_HINT_ENUM,
+			"hint_string": "Lossless,VRAM - S3TC (Desktop),VRAM - BPTC (Desktop HQ),VRAM - ETC2 (Mobile),VRAM - ASTC (Mobile HQ)",
+		},
+		{"name": "texture/mipmaps", "default_value": config.get_default_mipmaps()},
+		{
 			"name": "output/layers_resources_folder",
 			"default_value": "",
 			"property_hint": PROPERTY_HINT_DIR,
@@ -107,6 +114,8 @@ func _import(source_file, save_path, options, platform_variants, gen_files):
 	var import_options := {
 		"trim": options.get("sheet/trim", false),
 		"scale": float(options.get("sheet/scale", 1.0)),
+		"compression": int(options.get("texture/compression", config.get_default_compression())),
+		"mipmaps": bool(options.get("texture/mipmaps", config.get_default_mipmaps())),
 		"only_visible": only_visible,
 		"exception_pattern": exception_pattern,
 		"source": source_file,

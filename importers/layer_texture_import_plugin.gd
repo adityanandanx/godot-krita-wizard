@@ -11,6 +11,7 @@ const result_codes = preload("../config/result_codes.gd")
 const logger = preload("../config/logger.gd")
 const KraParser = preload("../kra/kra_parser.gd")
 const KraCompositor = preload("../kra/compositor.gd")
+const TextureSaver = preload("./helpers/texture_saver.gd")
 const layer_tags = preload("../kra/layer_tags.gd")
 
 var config = preload("../config/config.gd").new()
@@ -33,7 +34,7 @@ func _get_save_extension():
 
 
 func _get_resource_type():
-	return "PortableCompressedTexture2D"
+	return "Texture2D"
 
 
 func _get_preset_count():
@@ -102,15 +103,12 @@ func _import(source_file, save_path, options, platform_variants, gen_files):
 
 	var image: Image = compose_result.content.image
 
-	var tex := PortableCompressedTexture2D.new()
-	tex.create_from_image(image, PortableCompressedTexture2D.COMPRESSION_MODE_LOSSLESS)
-
-	var exit_code = ResourceSaver.save(tex, "%s.%s" % [save_path, _get_save_extension()])
-	if exit_code != OK:
-		logger.error("Could not persist layer texture: %s" % result_codes.get_error_message(exit_code), source_file)
-		return FAILED
-
-	return OK
+	return TextureSaver.save_texture(
+		image, save_path, _get_save_extension(),
+		int(sidecar.import_options.get("compression", config.get_default_compression())),
+		bool(sidecar.import_options.get("mipmaps", config.get_default_mipmaps())),
+		source_file
+	)
 
 
 func _import_layer(parser, compositor, sidecar: Dictionary, trim_opt: bool, scale_opt: float, source_file: String) -> Dictionary:

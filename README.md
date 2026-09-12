@@ -46,6 +46,8 @@ Common options:
 | `layer/merge_groups` | *(split only)* Emit one texture per top-level group instead of per layer |
 | `sheet/trim` | Crop output to content (default off) |
 | `sheet/scale` | Float resize factor, e.g. `0.5` to downscale |
+| `texture/compression` | `Lossless` (default), `VRAM - S3TC (Desktop)`, `VRAM - BPTC (Desktop HQ)`, `VRAM - ETC2 (Mobile)`, `VRAM - ASTC (Mobile HQ)`. VRAM textures stay GPU-compressed on disk and in VRAM (smaller, faster); lossless is pixel-exact |
+| `texture/mipmaps` | Generate mipmaps (default off; only meaningful with VRAM compression) |
 | `sheet/frame_padding` | *(tileset)* Accepted, currently unused |
 | `output/layers_resources_folder` | *(split only)* Where sidecars go (default: next to the source) |
 
@@ -88,6 +90,7 @@ Example: a group named `Hero @merge`, a layer named `Sketch @exclude`, a layer n
 - Exotic blend modes and non-transparency masks fall back gracefully with a one-time log warning.
 - Group opacity below 100% and non-trivial groups render isolated (own canvas), matching Krita; simple groups blend flat.
 - Resizing up uses nearest-neighbor, downscaling uses bilinear.
+- VRAM compression is lossy (worst on smooth gradients; BPTC/ASTC hold up best) and falls back to lossless with a warning if the image can't be compressed. NPOT sizes are fine.
 
 ## License
 

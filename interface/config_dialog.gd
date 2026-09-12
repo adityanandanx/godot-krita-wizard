@@ -11,6 +11,8 @@ var _pattern_edit: LineEdit
 var _visible_check: CheckBox
 var _cleanup_check: CheckBox
 var _scale_spin: SpinBox
+var _compression_option: OptionButton
+var _mipmaps_check: CheckBox
 var _history_spin: SpinBox
 
 
@@ -44,6 +46,12 @@ func _build_ui() -> void:
 	box.add_child(_cleanup_check)
 
 	box.add_child(_make_labeled_row("Default scale:", _make_scale_spin()))
+	box.add_child(_make_labeled_row("Default texture compression:", _make_compression_option()))
+
+	_mipmaps_check = CheckBox.new()
+	_mipmaps_check.text = "Generate mipmaps by default (VRAM compression)"
+	box.add_child(_mipmaps_check)
+
 	box.add_child(_make_labeled_row("Max wizard history entries:", _make_history_spin()))
 
 	var buttons := HBoxContainer.new()
@@ -77,6 +85,7 @@ func _make_importer_option() -> OptionButton:
 	_importer_option = OptionButton.new()
 	_importer_option.add_item(config.IMPORTER_NOOP_NAME)
 	_importer_option.add_item(config.IMPORTER_STATIC_TEXTURE_NAME)
+	_importer_option.add_item(config.IMPORTER_STATIC_TEXTURE_SPLIT_NAME)
 	_importer_option.add_item(config.IMPORTER_TILESET_TEXTURE_NAME)
 	return _importer_option
 
@@ -94,7 +103,6 @@ func _make_scale_spin() -> SpinBox:
 	_scale_spin.step = 0.1
 	return _scale_spin
 
-
 func _make_history_spin() -> SpinBox:
 	_history_spin = SpinBox.new()
 	_history_spin.min_value = 1.0
@@ -103,12 +111,24 @@ func _make_history_spin() -> SpinBox:
 	return _history_spin
 
 
+func _make_compression_option() -> OptionButton:
+	_compression_option = OptionButton.new()
+	_compression_option.add_item("Lossless", 0)
+	_compression_option.add_item("VRAM - S3TC (Desktop)", 1)
+	_compression_option.add_item("VRAM - BPTC (Desktop HQ)", 2)
+	_compression_option.add_item("VRAM - ETC2 (Mobile)", 3)
+	_compression_option.add_item("VRAM - ASTC (Mobile HQ)", 4)
+	return _compression_option
+
+
 func _load_values() -> void:
 	_select_importer(config.get_default_importer())
 	_pattern_edit.text = config.get_default_exclusion_pattern()
 	_visible_check.button_pressed = config.get_default_only_visible_layers()
 	_cleanup_check.button_pressed = config.should_remove_temporary_files()
 	_scale_spin.value = float(config.get_default_scale())
+	_compression_option.select(clampi(config.get_default_compression(), 0, 4))
+	_mipmaps_check.button_pressed = config.get_default_mipmaps()
 	_history_spin.value = float(config.get_history_max_entries())
 
 
@@ -125,6 +145,8 @@ func _on_save_pressed() -> void:
 	config.set_project_setting('krita/layers/only_include_visible_layers_by_default', _visible_check.button_pressed)
 	config.set_project_setting('krita/import/cleanup/remove_temporary_files', _cleanup_check.button_pressed)
 	config.set_project_setting('krita/import/scale', float(_scale_spin.value))
+	config.set_project_setting('krita/import/compression', int(_compression_option.selected))
+	config.set_project_setting('krita/import/mipmaps', _mipmaps_check.button_pressed)
 	config.set_project_setting('krita/wizard/history/max_history_entries', int(_history_spin.value))
 	hide()
 

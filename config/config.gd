@@ -8,6 +8,8 @@ const _REMOVE_SOURCE_FILES_KEY = 'krita/import/cleanup/remove_temporary_files'
 const _IMPORTER_ENABLE_KEY = 'krita/import/import_plugin/enable_automatic_importer'
 const _DEFAULT_IMPORTER_KEY = 'krita/import/import_plugin/default_automatic_importer'
 const _DEFAULT_SCALE = 'krita/import/scale'
+const _DEFAULT_COMPRESSION = 'krita/import/compression'
+const _DEFAULT_MIPMAPS = 'krita/import/mipmaps'
 const _WIZARD_HISTORY = "wizard_history"
 const _HISTORY_MAX_ENTRIES = 'krita/wizard/history/max_history_entries'
 const _HISTORY_DEFAULT_MAX_ENTRIES = 100
@@ -51,6 +53,14 @@ func get_default_only_visible_layers() -> bool:
 
 func get_default_scale() -> float:
 	return float(get_project_setting(_DEFAULT_SCALE, 1.0))
+
+
+func get_default_compression() -> int:
+	return int(get_project_setting(_DEFAULT_COMPRESSION, 0))
+
+
+func get_default_mipmaps() -> bool:
+	return bool(get_project_setting(_DEFAULT_MIPMAPS, false))
 
 
 func is_importer_enabled() -> bool:
@@ -98,6 +108,8 @@ func initialize_project_settings() -> void:
 	_initialize_project_cfg(_DEFAULT_EXCLUSION_PATTERN_KEY, "", TYPE_STRING)
 	_initialize_project_cfg(_DEFAULT_ONLY_VISIBLE_LAYERS, false, TYPE_BOOL)
 	_initialize_project_cfg(_DEFAULT_SCALE, 1.0, TYPE_FLOAT)
+	_initialize_project_cfg(_DEFAULT_COMPRESSION, 0, TYPE_INT, PROPERTY_HINT_ENUM, "Lossless,VRAM - S3TC (Desktop),VRAM - BPTC (Desktop HQ),VRAM - ETC2 (Mobile),VRAM - ASTC (Mobile HQ)")
+	_initialize_project_cfg(_DEFAULT_MIPMAPS, false, TYPE_BOOL)
 	_initialize_project_cfg(_REMOVE_SOURCE_FILES_KEY, true, TYPE_BOOL)
 	_initialize_project_cfg(
 		_DEFAULT_IMPORTER_KEY,
