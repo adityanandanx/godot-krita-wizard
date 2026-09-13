@@ -110,6 +110,10 @@ Instantiate the scene under your 2D scene and the layers scroll at their tagged 
 - Resizing up uses nearest-neighbor, downscaling uses bilinear.
 - VRAM compression is lossy (worst on smooth gradients; BPTC/ASTC hold up best) and falls back to lossless with a warning if the image can't be compressed. NPOT sizes are fine.
 
+## AI usage disclaimer
+
+This project was developed with AI assistance (code, docs, and tests written iteratively with an AI coding agent). Every feature was verified against real `.kra` files and Godot imports before release, but AI-generated code can contain subtle bugs — review anything you depend on, back up your work, and report issues you find.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
