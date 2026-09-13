@@ -22,7 +22,7 @@ Import [Krita](https://krita.org) (`.kra`) files directly into **Godot 4** — n
 1. Clone this repo into your project's `addons/` folder so you get `addons/krita_wizard/`:
    ```sh
    cd your-godot-project/addons
-   git clone https://github.com/adityanandanx/krita-wizard krita_wizard
+   git clone https://github.com/adityanandanx/godot-krita-wizard krita_wizard
    ```
 2. In Godot: **Project → Project Settings → Plugins** → enable **Krita Wizard**.
 3. Drop a `.kra` file anywhere in your project. Pick its importer in the **Import** dock.
