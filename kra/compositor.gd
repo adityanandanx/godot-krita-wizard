@@ -94,13 +94,28 @@ func compose(parser, layers: Array, options: Dictionary) -> Dictionary:
 ## Trivial documents produce byte-identical output to compose().
 ##
 func compose_tree(parser, options: Dictionary) -> Dictionary:
+	var nodes: Array = parser.get_layers().duplicate()
+	nodes.reverse()
+	return _compose_tree_nodes(parser, nodes, options)
+
+
+## Composites one animation frame. `nodes_doc_order` is a document-order
+## node array (like KraParser.get_layers(), e.g. built by the animation
+## module with per-frame layer files swapped in); output shape matches
+## compose_tree exactly.
+func compose_animation_frame(parser, nodes_doc_order: Array, options: Dictionary) -> Dictionary:
+	var nodes: Array = nodes_doc_order.duplicate()
+	nodes.reverse()
+	return _compose_tree_nodes(parser, nodes, options)
+
+
+## `nodes` must be in paint order (bottom layer first, top layer last).
+func _compose_tree_nodes(parser, nodes: Array, options: Dictionary) -> Dictionary:
 	var only_visible: bool = options.get("only_visible", false)
 	var exception_pattern: String = options.get("exception_pattern", "")
 	var width: int = parser.get_width()
 	var height: int = parser.get_height()
 
-	var nodes: Array = parser.get_layers().duplicate()
-	nodes.reverse()
 	if nodes.is_empty():
 		return result_codes.error(result_codes.ERR_NO_VALID_LAYERS_FOUND)
 

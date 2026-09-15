@@ -8,6 +8,7 @@ const ERR_INVALID_KRA_FILE = 994
 const ERR_UNSUPPORTED_COLORSPACE = 995
 const ERR_NO_VALID_LAYERS_FOUND = 996
 const ERR_ZIP_READ_FAILED = 997
+const ERR_NOT_ANIMATED_DOCUMENT = 998
 
 
 static func get_error_message(code: int) -> String:
@@ -24,6 +25,8 @@ static func get_error_message(code: int) -> String:
 			return "no valid layers found"
 		ERR_ZIP_READ_FAILED:
 			return "could not read the .kra archive"
+		ERR_NOT_ANIMATED_DOCUMENT:
+			return "no animation found: the document has no timeline or no animated layers"
 		_:
 			return "import failed: %d" % error_string(code)
 

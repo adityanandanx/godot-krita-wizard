@@ -7,6 +7,7 @@ const TextureSplitImportPlugin = preload("importers/static_texture_multiple_impo
 const LayerTextureImportPlugin = preload("importers/layer_texture_import_plugin.gd")
 const TilesetTextureImportPlugin = preload("importers/tileset_texture_import_plugin.gd")
 const ParallaxLayersImportPlugin = preload("importers/parallax_layers_import_plugin.gd")
+const SpriteFramesImportPlugin = preload("importers/sprite_frames_import_plugin.gd")
 const FileSystemHelper = preload("importers/helpers/file_system_helper.gd")
 
 const WizardDock = preload("interface/wizard_dock.gd")
@@ -69,6 +70,7 @@ func _setup_importer():
 		LayerTextureImportPlugin.new(),
 		TilesetTextureImportPlugin.new(),
 		ParallaxLayersImportPlugin.new(),
+		SpriteFramesImportPlugin.new(),
 	]
 
 	for i in _importers:

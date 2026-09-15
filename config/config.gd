@@ -19,6 +19,7 @@ const IMPORTER_STATIC_TEXTURE_NAME = "Static Texture"
 const IMPORTER_STATIC_TEXTURE_SPLIT_NAME = "Static Texture (Split By Layer)"
 const IMPORTER_TILESET_TEXTURE_NAME = "Tileset Texture"
 const IMPORTER_PARALLAX_LAYERS_NAME = "Parallax Layers"
+const IMPORTER_ANIMATION_NAME = "Animation"
 
 var _editor_settings: EditorSettings = null
 
@@ -122,7 +123,8 @@ func initialize_project_settings() -> void:
 			IMPORTER_STATIC_TEXTURE_NAME,
 			IMPORTER_STATIC_TEXTURE_SPLIT_NAME,
 			IMPORTER_TILESET_TEXTURE_NAME,
-			IMPORTER_PARALLAX_LAYERS_NAME
+			IMPORTER_PARALLAX_LAYERS_NAME,
+			IMPORTER_ANIMATION_NAME
 		])
 	)
 	_initialize_project_cfg(_HISTORY_MAX_ENTRIES, _HISTORY_DEFAULT_MAX_ENTRIES, TYPE_INT)

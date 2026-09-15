@@ -36,6 +36,7 @@ Import [Krita](https://krita.org) (`.kra`) files directly into **Godot 4** — n
 | Krita Layer Texture | Internal: imports a single `.kra_layer_tex` sidecar |
 | Krita Tileset Texture | Same as Krita Texture (tile grid slicing is not implemented yet) |
 | Krita Parallax Layers | A `Node2D` scene: one `Parallax2D` + `Sprite2D` per paint layer, speeds from tags (below) |
+| Krita Animation | A `SpriteFrames` resource: one named animation per top-level group (or one `default` animation), frames from the Krita timeline |
 | Krita (No Import) | Tracks the file without importing |
 
 Common options:
@@ -102,9 +103,15 @@ Node2D 'doc'
 
 Instantiate the scene under your 2D scene and the layers scroll at their tagged speeds with the camera. Instance it before your gameplay nodes: the root is a plain `Node2D`, so it draws in tree order (unlike the old `ParallaxBackground`, which always drew behind). A bare `@repeatx`/`@repeaty` (or `@repeat`) uses the exported PNG's size on that axis, which tiles trimmed layers seamlessly; use explicit pixel values to repeat full-canvas art. Layer opacity from Krita is baked into the PNGs; blend modes are not translated (use `CanvasItemMaterial` on the Sprite2D if needed). Groups are not units here — nested paint layers import individually.
 
-## Notes & limitations
+## Animation
 
-- Animation (timeline, keyframes, onion skin) is not imported — static pixels only.
+Set a `.kra` file's importer to **Krita Animation**. Each top-level group becomes one named animation (e.g. groups `walk`, `attack`, `idle` → animations `walk`, `attack`, `idle`); layers outside all groups are shared backdrop drawn into every animation. A document with no groups yields a single `default` animation over the timeline range.
+
+Frames are full-document composites packed into one `<doc>_animation.png` grid next to the source (imported through Godot's texture pipeline like everything else) and referenced by the saved `SpriteFrames` via `AtlasTexture` regions — drop the `.res` onto an `AnimatedSprite2D` to play it. FPS comes from the Krita document; per-file options cover trim (cropped to the content union across the clip so sprites don't jitter), scale, sheet columns, frame range/step, loop, and FPS rounding.
+
+Not translated: onion skin, transform-mask and animated-group keyframes (animated groups render static with a warning), animated masks (stay static), storyboards.
+
+## Notes & limitations
 - Exotic blend modes and non-transparency masks fall back gracefully with a one-time log warning.
 - Group opacity below 100% and non-trivial groups render isolated (own canvas), matching Krita; simple groups blend flat.
 - Resizing up uses nearest-neighbor, downscaling uses bilinear.

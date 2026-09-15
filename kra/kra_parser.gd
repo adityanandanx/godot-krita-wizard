@@ -23,6 +23,9 @@ var _colorspace: String = ""
 var _depth: String = ""
 var _doc_name: String = ""
 var _layers: Array = []
+var _framerate: int = 0
+var _anim_range_from: int = 0
+var _anim_range_to: int = 0
 var _warned_mask_types := {}
 
 
@@ -68,6 +71,9 @@ func close() -> void:
 	_height = 0
 	_colorspace = ""
 	_depth = ""
+	_framerate = 0
+	_anim_range_from = 0
+	_anim_range_to = 0
 
 
 func is_open() -> bool:
@@ -84,6 +90,44 @@ func get_height() -> int:
 
 func get_layers() -> Array:
 	return _layers
+
+
+## Timeline metadata from the maindoc <animation> block.
+## framerate is 0 when the document has no animation data.
+func get_framerate() -> int:
+	return _framerate
+
+
+func get_anim_range_from() -> int:
+	return _anim_range_from
+
+
+func get_anim_range_to() -> int:
+	return _anim_range_to
+
+
+func has_animation_block() -> bool:
+	return _framerate > 0
+
+
+## In-zip path of a layer's keyframes file, or "" when the layer
+## is static. `keyframes_attr` is the layer's "keyframes" attribute.
+func get_keyframes_store_path(keyframes_attr: String) -> String:
+	if keyframes_attr == "":
+		return ""
+	return "%s/layers/%s" % [_doc_name, keyframes_attr]
+
+
+## Raw bytes of any file inside the .kra archive, or an empty
+## array when the file is missing/unreadable. Used for auxiliary
+## files (keyframes) that are not tile data.
+func read_store_bytes(zip_path: String) -> PackedByteArray:
+	if not is_open() or zip_path == "":
+		return PackedByteArray()
+	if not _zip.file_exists(zip_path):
+		return PackedByteArray()
+	var buf := _zip.read_file(zip_path)
+	return buf if buf != null else PackedByteArray()
 
 
 ## Finds any node (paint layer or group) by its stable file id.
@@ -136,6 +180,7 @@ func _parse_document(buffer: PackedByteArray) -> Dictionary:
 		return result_codes.error(result_codes.ERR_INVALID_KRA_FILE)
 
 	var in_image := false
+	var in_animation := false
 	var stack: Array = []
 	var current_group = null
 
@@ -178,9 +223,27 @@ func _parse_document(buffer: PackedByteArray) -> Dictionary:
 							if not _warned_mask_types.has(mask_type):
 								_warned_mask_types[mask_type] = true
 								logger.warn("Unsupported mask type '%s' will be ignored (only transparency/selection masks are applied)" % mask_type)
+					"animation":
+						if in_image:
+							in_animation = true
+					"framerate":
+						if in_image and in_animation:
+							var fps_attr: String = _xml_parser.get_named_attribute_value("value")
+							if fps_attr != "":
+								_framerate = int(fps_attr)
+					"range":
+						if in_image and in_animation:
+							var from_attr: String = _xml_parser.get_named_attribute_value("from")
+							var to_attr: String = _xml_parser.get_named_attribute_value("to")
+							if from_attr != "":
+								_anim_range_from = int(from_attr)
+							if to_attr != "":
+								_anim_range_to = int(to_attr)
 			NODE_ELEMENT_END:
 				var end_name: String = _xml_parser.get_node_name()
 				match end_name:
+					"animation":
+						in_animation = false
 					"layer":
 						if not stack.is_empty():
 							stack.pop_back()
@@ -227,6 +290,7 @@ func _parse_layer_element() -> Variant:
 		"blend_mode": compositeop if compositeop != "" else "normal",
 		"x": int(_xml_parser.get_named_attribute_value("x")),
 		"y": int(_xml_parser.get_named_attribute_value("y")),
+		"keyframes": _xml_parser.get_named_attribute_value("keyframes") if _xml_parser.has_attribute("keyframes") else "",
 		"children": [],
 		"masks": [],
 		"parent_group": null,
