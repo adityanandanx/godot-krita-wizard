@@ -179,8 +179,32 @@ func _import(source_file, save_path, options, platform_variants, gen_files):
 		var frames := animation.clip_frame_list(clip, step)
 		clip_frames.push_back(frames)
 		total += frames.size()
-	var rows := maxi(1, int(ceil(float(total) / float(columns))))
-	var sheet := Image.create_empty(columns * fw, rows * fh, false, Image.FORMAT_RGBA8)
+
+	# The packed grid must fit inside the GLES3 texture size limit
+	# (16384 px per side), otherwise texture creation fails and every
+	# frame renders black. The user's columns value caps the width;
+	# when it would overflow we first widen the grid (more columns,
+	# fewer rows) and then shrink to the width cap. Full-canvas frames
+	# of a wide document can still exceed the limit — those error out
+	# with a hint (trim or a smaller range fixes it).
+	const MAX_TEXTURE_SIDE := 16384
+	if fw > MAX_TEXTURE_SIDE or fh > MAX_TEXTURE_SIDE:
+		parser.close()
+		logger.error("Frame size %dx%d exceeds the %d px texture limit; use a scale below 1" % [fw, fh, MAX_TEXTURE_SIDE], source_file)
+		return FAILED
+	var max_cols := maxi(1, MAX_TEXTURE_SIDE / fw)
+	var min_cols := maxi(1, ceili(float(total) * float(fh) / float(MAX_TEXTURE_SIDE)))
+	if min_cols > max_cols:
+		parser.close()
+		logger.error("Animation sheet would exceed the %d px texture limit (%d frames at %dx%d); enable trim, lower the resolution/scale, or reduce the frame range/step" % [MAX_TEXTURE_SIDE, total, fw, fh], source_file)
+		return FAILED
+	var eff_columns := clampi(columns, min_cols, max_cols)
+	var rows := maxi(1, ceili(float(total) / float(eff_columns)))
+	if eff_columns * fw > MAX_TEXTURE_SIDE or rows * fh > MAX_TEXTURE_SIDE:
+		parser.close()
+		logger.error("Animation sheet would exceed the %d px texture limit (grid %dx%d for %d frames at %dx%d); enable trim or reduce the frame range/step" % [MAX_TEXTURE_SIDE, eff_columns * fw, rows * fh, total, fw, fh], source_file)
+		return FAILED
+	var sheet := Image.create_empty(eff_columns * fw, rows * fh, false, Image.FORMAT_RGBA8)
 	sheet.fill(Color(0, 0, 0, 0))
 
 	var sprite_frames := SpriteFrames.new()
@@ -204,7 +228,7 @@ func _import(source_file, save_path, options, platform_variants, gen_files):
 				cell += 1
 				continue
 			var frame: Image = _finalize_frame(frame_result.content.image, union, trim, scale)
-			sheet.blit_rect(frame, Rect2i(0, 0, fw, fh), Vector2i((cell % columns) * fw, (cell / columns) * fh))
+			sheet.blit_rect(frame, Rect2i(0, 0, fw, fh), Vector2i((cell % eff_columns) * fw, (cell / eff_columns) * fh))
 			packed.push_back({"clip": i, "cell": cell})
 			packed_per_clip[i] = int(packed_per_clip[i]) + 1
 			cell += 1
@@ -245,7 +269,7 @@ func _import(source_file, save_path, options, platform_variants, gen_files):
 		var packed_cell := int(entry.cell)
 		var atlas := AtlasTexture.new()
 		atlas.atlas = texture
-		atlas.region = Rect2i((packed_cell % columns) * fw, (packed_cell / columns) * fh, fw, fh)
+		atlas.region = Rect2i((packed_cell % eff_columns) * fw, (packed_cell / eff_columns) * fh, fw, fh)
 		sprite_frames.add_frame(str(clip.name), atlas, 1.0)
 
 	var resource_path := "%s.%s" % [save_path, _get_save_extension()]
